@@ -32,11 +32,11 @@ So, only change the prosody.np and prosody.prod files please.
 
 `scripts/bootstrap-keycloak.py` will:
 
-Ensure realm chat exists
-Ensure client prosody-backend exists
-Enable direct access grants
-Sync the client secret from .env
-Optionally create a test user
+- Ensure realm chat exists
+- Ensure client prosody-backend exists
+- Enable direct access grants
+- Sync the client secret from .env
+- Optionally create a test user
 
 ## Repository Layout
 - `docker-compose.non-prod.yml` – development
