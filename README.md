@@ -12,10 +12,10 @@ It runs in two clearly separated modes:
 
 ## Prerequisites
 
-Docker + Docker Compose
-openssl
-hg (Mercurial) for prosody-modules
-Optional but recommended for local TLS: mkcert
+- Docker + Docker Compose
+- openssl
+- hg (Mercurial) for prosody-modules
+- Optional but recommended for local TLS: mkcert
 
 ## What's Implemented
 There are fully separate Prosody configs per environment:
@@ -85,14 +85,14 @@ Important: do not use 127.0.0.1 as your XMPP domain. Prosody serves localhost un
 ## Environment Variables
 These are what should be in the environment vars:
 
-DOMAIN
-PROSODY_ADMIN_JID
-PROSODY_OAUTH_SECRET
-DB_NAME
-DB_USER
-DB_PASSWORD
-KC_ADMIN
-KC_ADMIN_PASSWORD
+- DOMAIN
+- PROSODY_ADMIN_JID
+- PROSODY_OAUTH_SECRET
+- DB_NAME
+- DB_USER
+- DB_PASSWORD
+- KC_ADMIN
+- KC_ADMIN_PASSWORD
 
 ## Database Init Notes (Postgres 18)
 The compose files mount Postgres data at:
