@@ -1,0 +1,22 @@
+# Docker Data
+postgres_data/
+prosody/data/
+keycloak
+
+# Secrets
+.env
+
+# Prosody Community Modules (These are pulled via setup.sh)
+prosody/modules/*
+!prosody/modules/.gitkeep
+
+# Certificates prod certs should be handled by Let's Encrypt/Certbot, local stuff = throwaway
+prosody/certs/*.key
+prosody/certs/*.crt
+
+# Python
+__pycache__/
+*.py[cod]
+
+.vscode
+
