@@ -39,14 +39,14 @@ Sync the client secret from .env
 Optionally create a test user
 
 ## Repository Layout
-`docker-compose.non-prod.yml` – development
-`docker-compose.production.yml` – production
-`prosody/config/prosody.np.cfg.lua` – non-prod Prosody config
-`prosody/config/prosody.prod.cfg.lua` – production Prosody config
-`scripts/setup.py` – initial setup (env seed, localhost certs, module sync)
-`scripts/secure.sh` – randomizes placeholder secrets in .env
-`scripts/bootstrap-keycloak.py` – Keycloak realm/client/user bootstrap
-`init-schemas.sql` – database initialization
+- `docker-compose.non-prod.yml` – development
+- `docker-compose.production.yml` – production
+- `prosody/config/prosody.np.cfg.lua` – non-prod Prosody config
+- `prosody/config/prosody.prod.cfg.lua` – production Prosody config
+- `scripts/setup.py` – initial setup (env seed, localhost certs, module sync)
+- `scripts/secure.sh` – randomizes placeholder secrets in .env
+- `scripts/bootstrap-keycloak.py` – Keycloak realm/client/user bootstrap
+- `init-schemas.sql` – database initialization
 
 
 ## Quick Start – Non-Prod
@@ -101,10 +101,10 @@ The compose files mount Postgres data at:
 `init-schemas.sql` grants privileges against `current_database()` so it works with whatever `DB_NAME` is set in `.env`.
 
 If init fails and Postgres gets stuck unhealthy on first boot, reset local data and retry:
-`docker compose -f docker-compose.non-prod.yml down`
-`mv postgres_data postgres_data.failed-init-backup`
-`mkdir -p postgres_data`
-`docker compose -f docker-compose.non-prod.yml up`
+- `docker compose -f docker-compose.non-prod.yml down`
+- `mv postgres_data postgres_data.failed-init-backup`
+- `mkdir -p postgres_data`
+- `docker compose -f docker-compose.non-prod.yml up`
 
 ## Certificates and TLS (Non-Prod)
 By default, setup.py generates self-signed localhost certs under:
