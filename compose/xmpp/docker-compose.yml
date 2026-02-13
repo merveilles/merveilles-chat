@@ -2,14 +2,8 @@ services:
   chat-server:
     image: prosodyim/prosody:0.12
     container_name: chat-server
-    environment:
-      - DOMAIN=${DOMAIN}
-      - PROSODY_ADMIN_JID=${PROSODY_ADMIN_JID}
-      - PROSODY_OAUTH_SECRET=${PROSODY_OAUTH_SECRET}
-      - KC_REALM=${KC_REALM}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${PROSODY_DB_USER}
-      - DB_PASSWORD=${PROSODY_DB_PASSWORD}
+    env_file:
+      - ../../env/xmpp.env
     ports:
       - "5222:5222"
       - "5269:5269"

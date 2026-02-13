@@ -3,18 +3,9 @@ services:
     image: keycloak/keycloak:26.5
     container_name: chat-idp
     command: start --import-realm
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: "jdbc:postgresql://chat-db:5432/${DB_NAME}?currentSchema=keycloak_schema"
-      KC_DB_USERNAME: ${KC_DB_USER}
-      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
-      KC_HOSTNAME: sso.${DOMAIN}
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
-      KC_PROXY_HEADERS: xforwarded
-      KC_HTTP_ENABLED: "true"
-      KC_HEALTH_ENABLED: "true"
-      KC_METRICS_ENABLED: "true"
+    env_file:
+      - ../../env/stack.env
+      - ../../env/idp.env
     volumes:
       - ../../keycloak-config/import:/opt/keycloak/data/import:ro
     networks:

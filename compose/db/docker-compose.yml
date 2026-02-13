@@ -2,21 +2,15 @@ services:
   chat-db:
     image: postgres:18-alpine
     container_name: chat-db
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      KC_DB_USER: ${KC_DB_USER}
-      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
-      PROSODY_DB_USER: ${PROSODY_DB_USER}
-      PROSODY_DB_PASSWORD: ${PROSODY_DB_PASSWORD}
+    env_file:
+      - ../../env/db.env
     volumes:
       - ../../postgres_data:/var/lib/postgresql
       - ../../scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     networks:
       - db-mesh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
