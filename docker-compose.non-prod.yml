@@ -1,5 +1,4 @@
 services:
-  # Database
   chat-db:
     image: postgres:18-alpine
     container_name: chat-db
@@ -23,7 +22,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Identity Provider
   chat-idp:
     image: keycloak/keycloak:26.5
     container_name: chat-idp
@@ -39,25 +37,24 @@ services:
       chat-db:
         condition: service_healthy
     volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:ro
+      - ./keycloak-config/import:/opt/keycloak/data/import:ro
     ports:
       - "8080:8080"
     networks:
       - chat-mesh
     restart: unless-stopped
 
-  # XMPP Server
   chat-server:
     image: prosodyim/prosody:0.12
     container_name: chat-server
     environment:
-      - DOMAIN=${DOMAIN}
-      - PROSODY_ADMIN_JID=${PROSODY_ADMIN_JID}
-      - PROSODY_OAUTH_SECRET=${PROSODY_OAUTH_SECRET}
-      - KC_REALM=${KC_REALM}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${PROSODY_DB_USER}
-      - DB_PASSWORD=${PROSODY_DB_PASSWORD}
+      DOMAIN: ${DOMAIN}
+      PROSODY_ADMIN_JID: ${PROSODY_ADMIN_JID}
+      PROSODY_OAUTH_SECRET: ${PROSODY_OAUTH_SECRET}
+      KC_REALM: ${KC_REALM}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${PROSODY_DB_USER}
+      DB_PASSWORD: ${PROSODY_DB_PASSWORD}
     ports:
       - "5222:5222"
       - "5269:5269"

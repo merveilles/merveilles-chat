@@ -16,7 +16,7 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
     volumes:
-      - ../../keycloak/import:/opt/keycloak/data/import:ro
+      - ../../keycloak-config/import:/opt/keycloak/data/import:ro
     networks:
       - db-mesh
       - proxy-mesh

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="${ROOT_DIR}/.env"
+OUT_DIR="${ROOT_DIR}/keycloak-config/import"
+
+if [[ ! -f "${ENV_FILE}" ]]; then
+  echo "Missing .env at ${ENV_FILE}" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${ENV_FILE}"
+
+KC_CONTAINER="${KC_CONTAINER:-chat-idp}"
+KC_REALM="${KC_REALM:-merveilles}"
+CONTAINER_EXPORT_DIR="/tmp/realm-export"
+TMP_JSON="$(mktemp)"
+trap 'rm -f "${TMP_JSON}"' EXIT
+
+mkdir -p "${OUT_DIR}"
+
+docker exec "${KC_CONTAINER}" /opt/keycloak/bin/kc.sh export \
+  --realm "${KC_REALM}" \
+  --dir "${CONTAINER_EXPORT_DIR}" \
+  --users realm_file
+
+docker cp "${KC_CONTAINER}:${CONTAINER_EXPORT_DIR}/${KC_REALM}-realm.json" "${TMP_JSON}"
+docker exec "${KC_CONTAINER}" rm -rf "${CONTAINER_EXPORT_DIR}"
+
+python3 "${ROOT_DIR}/scripts/redact-realm.py" \
+  "${TMP_JSON}" \
+  "${OUT_DIR}/${KC_REALM}-realm.json"
+
+echo "Exported and redacted realm to ${OUT_DIR}/${KC_REALM}-realm.json"

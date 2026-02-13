@@ -1,0 +1,8 @@
+{
+  "prosody-backend": {
+    "directAccessGrants": true,
+    "standardFlow": false,
+    "secretEnvKey": "PROSODY_OAUTH_SECRET",
+    "serviceAccounts": false
+  }
+}
