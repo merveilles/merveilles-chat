@@ -7,9 +7,13 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+      KC_DB_USER: ${KC_DB_USER}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      PROSODY_DB_USER: ${PROSODY_DB_USER}
+      PROSODY_DB_PASSWORD: ${PROSODY_DB_PASSWORD}
     volumes:
       - ./postgres_data:/var/lib/postgresql
-      - ./init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql:ro
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     networks:
       - chat-mesh
     healthcheck:
@@ -27,8 +31,8 @@ services:
     environment:
       KC_DB: postgres
       KC_DB_URL: "jdbc:postgresql://chat-db:5432/${DB_NAME}?currentSchema=keycloak_schema"
-      KC_DB_USERNAME: ${DB_USER}
-      KC_DB_PASSWORD: ${DB_PASSWORD}
+      KC_DB_USERNAME: ${KC_DB_USER}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
     depends_on:
@@ -50,9 +54,10 @@ services:
       - DOMAIN=${DOMAIN}
       - PROSODY_ADMIN_JID=${PROSODY_ADMIN_JID}
       - PROSODY_OAUTH_SECRET=${PROSODY_OAUTH_SECRET}
+      - KC_REALM=${KC_REALM}
       - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_USER=${PROSODY_DB_USER}
+      - DB_PASSWORD=${PROSODY_DB_PASSWORD}
     ports:
       - "5222:5222"
       - "5269:5269"

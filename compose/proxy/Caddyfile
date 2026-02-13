@@ -1,0 +1,13 @@
+# Keycloak Identity Provider
+sso.{$DOMAIN} {
+	reverse_proxy chat-idp:8080
+}
+
+# Prosody HTTP services
+xmpp.{$DOMAIN} {
+	reverse_proxy chat-server:5281
+
+	# Copy TLS certs for Prosody's direct XMPP ports (5222, 5269)
+	# Caddy stores certs at /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/
+	# The sync-certs.sh script copies them to /tls-certs/ for Prosody
+}

@@ -1,0 +1,45 @@
+services:
+  chat-server:
+    image: prosodyim/prosody:0.12
+    container_name: chat-server
+    environment:
+      - DOMAIN=${DOMAIN}
+      - PROSODY_ADMIN_JID=${PROSODY_ADMIN_JID}
+      - PROSODY_OAUTH_SECRET=${PROSODY_OAUTH_SECRET}
+      - KC_REALM=${KC_REALM}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${PROSODY_DB_USER}
+      - DB_PASSWORD=${PROSODY_DB_PASSWORD}
+    ports:
+      - "5222:5222"
+      - "5269:5269"
+    volumes:
+      - ../../prosody/config/prosody.prod.cfg.lua:/etc/prosody/prosody.cfg.lua
+      - ../../prosody/modules:/usr/lib/prosody/modules-community
+      - ../../prosody/data:/var/lib/prosody
+      - tls-certs:/etc/prosody/certs:ro
+    networks:
+      - db-mesh
+      - proxy-mesh
+    healthcheck:
+      test: ["CMD-SHELL", "prosodyctl status | grep -q running"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+volumes:
+  tls-certs:
+    external: true
+
+networks:
+  db-mesh:
+    external: true
+  proxy-mesh:
+    external: true

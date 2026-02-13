@@ -1,7 +1,11 @@
 # Docker Data
 postgres_data/
 prosody/data/
-keycloak
+keycloak/
+
+# Backups
+backups/
+!backups/.gitkeep
 
 # Secrets
 .env
@@ -19,4 +23,3 @@ __pycache__/
 *.py[cod]
 
 .vscode
-

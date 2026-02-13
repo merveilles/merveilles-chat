@@ -1,0 +1,41 @@
+services:
+  chat-idp:
+    image: keycloak/keycloak:26.5
+    container_name: chat-idp
+    command: start --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: "jdbc:postgresql://chat-db:5432/${DB_NAME}?currentSchema=keycloak_schema"
+      KC_DB_USERNAME: ${KC_DB_USER}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_HOSTNAME: sso.${DOMAIN}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    volumes:
+      - ../../keycloak/import:/opt/keycloak/data/import:ro
+    networks:
+      - db-mesh
+      - proxy-mesh
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '\"status\":\"UP\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+networks:
+  db-mesh:
+    external: true
+  proxy-mesh:
+    external: true
