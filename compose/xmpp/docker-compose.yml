@@ -3,20 +3,20 @@ services:
     image: prosodyim/prosody:0.12
     container_name: chat-server
     env_file:
-      - ../../env/xmpp.env
+      - ./env/xmpp.env
     ports:
       - "5222:5222"
       - "5269:5269"
     volumes:
-      - ../../prosody/config/prosody.prod.cfg.lua:/etc/prosody/prosody.cfg.lua
-      - ../../prosody/modules:/usr/lib/prosody/modules-community
-      - ../../prosody/data:/var/lib/prosody
+      - ./prosody/config/prosody.cfg.lua:/etc/prosody/prosody.cfg.lua
+      - ./prosody/modules:/usr/lib/prosody/modules-community
+      - ./prosody/data:/var/lib/prosody
       - tls-certs:/etc/prosody/certs:ro
     networks:
       - db-mesh
       - proxy-mesh
     healthcheck:
-      test: ["CMD-SHELL", "prosodyctl status | grep -q running"]
+      test: ["CMD-SHELL", "timeout 3 bash -lc 'exec 3<>/dev/tcp/127.0.0.1/5222'"]
       interval: 15s
       timeout: 5s
       retries: 3
