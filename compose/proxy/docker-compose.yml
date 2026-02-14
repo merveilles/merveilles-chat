@@ -1,0 +1,57 @@
+services:
+  chat-proxy:
+    image: nginx:1-alpine
+    container_name: chat-proxy
+    env_file:
+      - ./env/proxy.env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./compose/proxy/active.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./compose/proxy/dev-certs:/etc/nginx/certs:ro
+      - certbot-webroot:/var/www/certbot:ro
+      - certbot-certs:/etc/letsencrypt:ro
+      - tls-certs:/tls-certs
+    networks:
+      - proxy-mesh
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:80/ || exit 0"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  chat-certbot:
+    image: certbot/certbot:latest
+    container_name: chat-certbot
+    env_file:
+      - ./env/proxy.env
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
+    # Certbot runs once then sleeps. Renewal is triggered externally
+    # via: docker exec chat-certbot certbot renew
+    # or via the renew-certs.sh script on a host cron.
+    entrypoint: /bin/sh
+    command: -c "trap exit TERM; while :; do sleep 12h & wait $$!; done"
+    networks: []
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+volumes:
+  certbot-webroot:
+  certbot-certs:
+  tls-certs:
+    external: true
+
+networks:
+  proxy-mesh:
+    external: true

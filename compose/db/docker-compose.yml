@@ -1,0 +1,27 @@
+services:
+  chat-db:
+    image: postgres:18-alpine
+    container_name: chat-db
+    env_file:
+      - ./env/db.env
+    volumes:
+      - ./postgres_data:/var/lib/postgresql
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    networks:
+      - db-mesh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+networks:
+  db-mesh:
+    external: true

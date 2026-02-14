@@ -1,126 +1,126 @@
 # Merveilles XMPP Stack
-Prosody + Keycloak + Postgres
 
-This is the Merveilles chat stack. It is a clean, reproducible XMPP setup built around:
-- `prosodyim/prosody:0.12` for the XMPP server
-- `keycloak/keycloak:26.5` for OIDC identity
-- `postgres:18-alpine` for persistence
+Prosody + Keycloak + Postgres.
 
-It runs in two clearly separated modes:
-- Non-production: local development, localhost domain, self-signed or mkcert TLS
-- Production: real domain, Let's Encrypt certs mounted from host, tighter defaults
+This repo runs a chat stack with:
+- `prosodyim/prosody:0.12`
+- `keycloak/keycloak:26.5`
+- `postgres:18-alpine`
+- `nginx:1-alpine` as the edge proxy
 
-## Prerequisites
+## What's here now
+
+The old top-level compose files are gone.
+
+Compose is split by service:
+- `compose/db/docker-compose.yml`
+- `compose/idp/docker-compose.yml`
+- `compose/xmpp/docker-compose.yml`
+- `compose/proxy/docker-compose.yml`
+
+Prosody config is now one file:
+- `prosody/config/prosody.cfg.lua`
+
+Behavior is driven by env values (`env/*.env`), not by seperate prosody configs anymore
+
+## Prereqs
 
 - Docker + Docker Compose
-- openssl
-- hg (Mercurial) for prosody-modules
-- Optional but recommended for local TLS: mkcert
+- `openssl`
+- `python3`
+- `hg` (needed only if you sync community prosody modules)
 
-## What's Implemented
-There are fully separate Prosody configs per environment:
+## Env Files
 
-`prosody/config/prosody.np.cfg.lua`
-`prosody/config/prosody.prod.cfg.lua`
+Copy examples once:
 
-Compose mounts the correct one directly to:
-`/etc/prosody/prosody.cfg.lua`
-
-So, only change the prosody.np and prosody.prod files please.
-
-### Keycloak bootstrap is automated
-
-`scripts/bootstrap-keycloak.py` will:
-
-- Ensure realm chat exists
-- Ensure client prosody-backend exists
-- Enable direct access grants
-- Sync the client secret from .env
-- Optionally create a test user
-
-## Repository Layout
-- `docker-compose.non-prod.yml` – development
-- `docker-compose.production.yml` – production
-- `prosody/config/prosody.np.cfg.lua` – non-prod Prosody config
-- `prosody/config/prosody.prod.cfg.lua` – production Prosody config
-- `scripts/setup.py` – initial setup (env seed, localhost certs, module sync)
-- `scripts/secure.sh` – randomizes placeholder secrets in .env
-- `scripts/bootstrap-keycloak.py` – Keycloak realm/client/user bootstrap
-- `init-schemas.sql` – database initialization
-
-
-## Quick Start – Non-Prod
-
-Initial setup:
-`./scripts/setup.py`
-or
-`python3 scripts/setup.py`
-
-Start:
-`docker compose -f docker-compose.non-prod.yml up`
-
-Run the Keycloak bootstrap:
-`./scripts/bootstrap-keycloak.py`
-or
-`python3 scripts/bootstrap-keycloak.py`
-
-If `PROSODY_OAUTH_SECRET` is missing/placeholder, bootstrap will generate one and write it to `.env`.
-
-Recreate Prosody so it picks up the OIDC secret:
-`docker compose -f docker-compose.non-prod.yml up -d --force-recreate chat-server`
-
-and if you want, create a test user:
-`./scripts/bootstrap-keycloak.py --user jim --password 'change-me'`
-
-Connect an XMPP client (I'm using Profanity)
-
-To access the Keycloak UI go to: http://localhost:8080
+```bash
+cp env/stack.env.example env/stack.env
+cp env/db.env.example env/db.env
+cp env/idp.env.example env/idp.env
+cp env/xmpp.env.example env/xmpp.env
+cp env/proxy.env.example env/proxy.env
 ```
-JID/domain: jim@localhost
+
+Then fill secrets:
+
+```bash
+bash scripts/secure.sh
+```
+
+## Quick Start (Dev)
+
+One command path:
+
+```bash
+bash scripts/deploy.sh dev
+```
+
+This runs setup, validation, compose up, health checks, and Keycloak bootstrap.
+
+Useful checks:
+
+```bash
+bash scripts/compose-up.sh status
+curl -k https://sso.localhost/realms/community/.well-known/openid-configuration
+```
+
+Create a test user:
+
+```bash
+python3 scripts/bootstrap-keycloak.py --user testuser --password changeme
+```
+
+XMPP client values:
+
+```text
+JID/domain: testuser@localhost
 Server: localhost
 Port: 5222
 ```
-Important: do not use 127.0.0.1 as your XMPP domain. Prosody serves localhost unless you configure a real domain.
 
-## Environment Variables
-These are what should be in the environment vars:
+Use `localhost`, not `127.0.0.1`, for XMPP domain/JID.
 
-- DOMAIN
-- PROSODY_ADMIN_JID
-- PROSODY_OAUTH_SECRET
-- DB_NAME
-- DB_USER
-- DB_PASSWORD
-- KC_ADMIN
-- KC_ADMIN_PASSWORD
+## Production
 
-## Database Init Notes (Postgres 18)
-The compose files mount Postgres data at:
-`/var/lib/postgresql`
+```bash
+bash scripts/deploy.sh prod example.com
+```
 
-`init-schemas.sql` grants privileges against `current_database()` so it works with whatever `DB_NAME` is set in `.env`.
+If cert issuance fails during deploy, fix DNS/ports and run:
 
-If init fails and Postgres gets stuck unhealthy on first boot, reset local data and retry:
-- `docker compose -f docker-compose.non-prod.yml down`
-- `mv postgres_data postgres_data.failed-init-backup`
-- `mkdir -p postgres_data`
-- `docker compose -f docker-compose.non-prod.yml up`
+```bash
+bash scripts/init-certs.sh
+```
 
-## Certificates and TLS (Non-Prod)
-By default, setup.py generates self-signed localhost certs under:
-`prosody/certs`
+Renewal helper:
 
-Some clients will reject self-signed certs unless explicitly trusted.
+```bash
+bash scripts/renew-certs.sh
+```
+
+## Scripts
+
+- `scripts/deploy.sh` full deploy flow
+- `scripts/compose-up.sh` up/down/restart/status
+- `scripts/setup.py` create dirs/env files, set domain, cert setup
+- `scripts/validate.sh` env/config sanity checks
+- `scripts/bootstrap-keycloak.py` realm/clients/user setup
+- `scripts/init-certs.sh` first cert request
+- `scripts/sync-certs.sh` copy LE certs into Prosody cert volume
+- `scripts/renew-certs.sh` renew + reload + sync
 
 ## Troubleshooting
-`host-unknown` or `This server does not serve 127.0.0.1`:
-Use JID/domain `user@localhost` and server `localhost` in non-prod.
+
+`host-unknown` or `server does not serve 127.0.0.1`:
+- use JID/domain `user@localhost` and server `localhost`
 
 `tlsv1 alert unknown ca`:
-Your client does not trust the cert. Use mkcert/system trust, or temporary non-prod TLS disable mode in the client.
+- your client does not trust the cert yet
 
 Keycloak `client_not_found`:
-Client `prosody-backend` is missing in realm `chat`. Run bootstrap again.
+- run `python3 scripts/bootstrap-keycloak.py` again
 
-Keycloak `resolve_required_actions` / `Account is not fully set up`:
-User has pending policy constraints (required actions, temporary password, profile constraints). Re-apply user via bootstrap or fix in Keycloak UI.
+Health checks timeout:
+- run `bash scripts/compose-up.sh status`
+- then `docker logs chat-idp` / `docker logs chat-server`

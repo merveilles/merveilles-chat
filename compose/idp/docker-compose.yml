@@ -1,0 +1,32 @@
+services:
+  chat-idp:
+    image: keycloak/keycloak:26.5
+    container_name: chat-idp
+    command: start --import-realm
+    env_file:
+      - ./env/stack.env
+      - ./env/idp.env
+    volumes:
+      - ./keycloak-config/import:/opt/keycloak/data/import:ro
+    networks:
+      - db-mesh
+      - proxy-mesh
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -lc \"exec 3<>/dev/tcp/localhost/9000; printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; cat <&3\" | grep -Eq '\"status\"[[:space:]]*:[[:space:]]*\"UP\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+networks:
+  db-mesh:
+    external: true
+  proxy-mesh:
+    external: true

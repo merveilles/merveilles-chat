@@ -1,0 +1,50 @@
+# Nginx reverse proxy configuration (dev/localhost)
+# Uses self-signed certs. Same routing as production.
+
+# Keycloak Identity Provider
+server {
+    listen 443 ssl;
+    server_name sso.${DOMAIN};
+
+    ssl_certificate     /etc/nginx/certs/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/certs/selfsigned.key;
+
+    location / {
+        proxy_pass http://chat-idp:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+    }
+}
+
+# Prosody HTTP services (BOSH, file share)
+server {
+    listen 443 ssl;
+    server_name xmpp.${DOMAIN};
+
+    ssl_certificate     /etc/nginx/certs/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/certs/selfsigned.key;
+
+    location / {
+        proxy_pass http://chat-server:5281;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# HTTP → HTTPS redirect
+server {
+    listen 80;
+    server_name sso.${DOMAIN} xmpp.${DOMAIN};
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
