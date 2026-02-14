@@ -5,97 +5,87 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from lib.common import (
-    BootstrapError,
-    generate_secret,
-    is_missing_secret,
-    load_env,
-    run,
-    set_env_value,
-    setup_logger,
-)
-from lib.keycloak_admin import BootstrapConfig, ClientDefinition, KeycloakAdmin, parse_clients_file
+from lib.common import BootstrapError, load_env, run, setup_logger
+from lib.keycloak_admin import BootstrapConfig, KeycloakAdmin, parse_clients_file
 
 logger = setup_logger("bootstrap-keycloak")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Bootstrap Keycloak realm, groups, roles, and clients from keycloak-config/clients.json"
-    )
-    parser.add_argument("--realm", help="Realm name override (defaults to KC_REALM from .env)")
-    parser.add_argument("--client", help="Only bootstrap a specific client")
-    parser.add_argument("--user", help="Optional username to create/update")
-    parser.add_argument("--password", help="Password for --user")
+    parser = argparse.ArgumentParser(description="set up keycloak realm, roles, groups, and clients")
+    parser.add_argument("--realm", help="override realm name (default: KC_REALM from env/stack.env)")
+    parser.add_argument("--client", help="only set up one client")
+    parser.add_argument("--user", help="optional user to create/update")
+    parser.add_argument("--password", help="password for --user")
     return parser.parse_args()
 
 
-def load_config(env_file: Path, realm_override: str | None) -> tuple[BootstrapConfig, dict[str, str]]:
-    env = load_env(env_file)
+def load_config(project_root: Path, realm_override: str | None) -> tuple[BootstrapConfig, dict[str, str]]:
+    stack_env = project_root / "env" / "stack.env"
+    idp_env = project_root / "env" / "idp.env"
+    xmpp_env = project_root / "env" / "xmpp.env"
 
-    admin_user = env.get("KC_ADMIN", "")
-    admin_password = env.get("KC_ADMIN_PASSWORD", "")
+    for path in [stack_env, idp_env, xmpp_env]:
+        if not path.exists():
+            raise BootstrapError(f"Missing env file: {path}")
+
+    merged: dict[str, str] = {}
+    for path in [stack_env, idp_env, xmpp_env]:
+        merged.update(load_env(path))
+
+    admin_user = merged.get("KC_BOOTSTRAP_ADMIN_USERNAME", "")
+    admin_password = merged.get("KC_BOOTSTRAP_ADMIN_PASSWORD", "")
     if not admin_user or not admin_password:
-        raise BootstrapError("KC_ADMIN and KC_ADMIN_PASSWORD must be set in .env")
+        raise BootstrapError("KC_BOOTSTRAP_ADMIN_USERNAME and KC_BOOTSTRAP_ADMIN_PASSWORD are required")
 
-    realm = (realm_override or env.get("KC_REALM") or "merveilles").strip()
+    realm = (realm_override or merged.get("KC_REALM") or "community").strip()
     if not realm:
         raise BootstrapError("Realm cannot be empty")
 
     cfg = BootstrapConfig(
-        env_file=env_file,
-        clients_file=env_file.parent / "keycloak-config" / "clients.json",
-        container=env.get("KC_CONTAINER", "chat-idp"),
-        server_url=env.get("KC_SERVER_URL", "http://localhost:8080"),
+        env_file=xmpp_env,
+        clients_file=project_root / "keycloak-config" / "clients.json",
+        container=merged.get("KC_CONTAINER", "chat-idp"),
+        server_url=merged.get("KC_SERVER_URL", "http://localhost:8080"),
         realm=realm,
         admin_user=admin_user,
         admin_password=admin_password,
     )
-    return cfg, env
+    return cfg, merged
 
 
-def resolve_client_secrets(
-    env_file: Path,
-    env: dict[str, str],
-    definitions: list[ClientDefinition],
-) -> tuple[dict[str, str], list[str]]:
-    generated: list[str] = []
+def resolve_client_secrets(env: dict[str, str], definitions: list) -> dict[str, str]:
     secrets_by_client: dict[str, str] = {}
 
     for definition in definitions:
-        value = env.get(definition.secret_env_key, "")
-        if is_missing_secret(value):
-            value = generate_secret()
-            set_env_value(env_file, definition.secret_env_key, value)
-            env[definition.secret_env_key] = value
-            generated.append(definition.secret_env_key)
-
+        value = env.get(definition.secret_env_key, "").strip()
+        if not value or value == "REPLACE_ME":
+            raise BootstrapError(
+                f"Missing secret for client '{definition.name}' in env key {definition.secret_env_key}"
+            )
         secrets_by_client[definition.name] = value
 
-    return secrets_by_client, generated
+    return secrets_by_client
 
 
 def main() -> int:
     args = parse_args()
 
     if args.user and not args.password:
-        logger.info("--password is required when --user is provided")
+        logger.info("--password is required with --user")
         return 1
 
-    env_file = Path(__file__).resolve().parent.parent / ".env"
-    if not env_file.exists():
-        logger.info(f"Missing .env file at {env_file}")
-        return 1
+    project_root = Path(__file__).resolve().parent.parent
 
     try:
-        cfg, env = load_config(env_file, args.realm)
+        cfg, env = load_config(project_root, args.realm)
         clients = parse_clients_file(cfg.clients_file)
 
         if args.client and args.client not in clients:
             raise BootstrapError(f"Unknown client '{args.client}' in {cfg.clients_file}")
 
         selected_clients = [clients[args.client]] if args.client else list(clients.values())
-        secrets_by_client, generated_keys = resolve_client_secrets(cfg.env_file, env, selected_clients)
+        secrets_by_client = resolve_client_secrets(env, selected_clients)
 
         admin = KeycloakAdmin(cfg=cfg, logger=logger, run_cmd=run)
         admin.validate_runtime()
@@ -121,17 +111,14 @@ def main() -> int:
         logger.info(str(exc))
         return 1
     except KeyboardInterrupt:
-        logger.info("Interrupted")
+        logger.info("interrupted")
         return 130
 
-    logger.info("Done")
-    logger.info(f"Realm: {cfg.realm}")
-    logger.info("Clients: " + ", ".join(client.name for client in selected_clients))
+    logger.info("done")
+    logger.info(f"realm: {cfg.realm}")
+    logger.info("clients: " + ", ".join(client.name for client in selected_clients))
     if args.user:
-        logger.info(f"User: {args.user}")
-    if generated_keys:
-        logger.info("Generated env keys: " + ", ".join(generated_keys))
-        logger.info("Recreate chat-server to load updated env")
+        logger.info(f"user: {args.user}")
 
     return 0
 

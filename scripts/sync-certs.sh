@@ -1,30 +1,27 @@
 #!/bin/bash
-# sync-certs.sh
-#
-# Copies TLS certificates from Caddy's ACME storage into the shared
-# tls-certs volume so Prosody can use them for direct XMPP connections
-# (ports 5222/5269 which bypass the reverse proxy).
-#
-# Usage: ./scripts/sync-certs.sh <domain>
+# usage: ./scripts/sync-certs.sh <domain>
 
 set -euo pipefail
 
 DOMAIN="${1:?Usage: sync-certs.sh <domain>}"
 
-CADDY_CERT_DIR="/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${DOMAIN}"
+CERTBOT_CERT_DIR="/etc/letsencrypt/live/${DOMAIN}"
 DEST_DIR="/tls-certs"
 
-if [ ! -d "$CADDY_CERT_DIR" ]; then
-    echo "Error: Certificate directory not found: ${CADDY_CERT_DIR}"
-    echo "Has Caddy obtained certificates for ${DOMAIN} yet?"
-    exit 1
-fi
+echo "syncing certs for ${DOMAIN}..."
 
-cp "${CADDY_CERT_DIR}/${DOMAIN}.crt" "${DEST_DIR}/${DOMAIN}.crt"
-cp "${CADDY_CERT_DIR}/${DOMAIN}.key" "${DEST_DIR}/${DOMAIN}.key"
+docker exec chat-proxy sh -c "
+    if [ ! -d '${CERTBOT_CERT_DIR}' ]; then
+        echo 'error: cert directory not found: ${CERTBOT_CERT_DIR}'
+        echo 'run cert init first for ${DOMAIN}'
+        exit 1
+    fi
 
-# Prosody reads certs as the prosody user (uid 101 in the official image)
-chown 101:101 "${DEST_DIR}/${DOMAIN}.crt" "${DEST_DIR}/${DOMAIN}.key"
-chmod 640 "${DEST_DIR}/${DOMAIN}.crt" "${DEST_DIR}/${DOMAIN}.key"
+    cp '${CERTBOT_CERT_DIR}/fullchain.pem' '${DEST_DIR}/${DOMAIN}.crt'
+    cp '${CERTBOT_CERT_DIR}/privkey.pem' '${DEST_DIR}/${DOMAIN}.key'
 
-echo "Certificates synced for ${DOMAIN}"
+    chown 101:101 '${DEST_DIR}/${DOMAIN}.crt' '${DEST_DIR}/${DOMAIN}.key'
+    chmod 640 '${DEST_DIR}/${DOMAIN}.crt' '${DEST_DIR}/${DOMAIN}.key'
+"
+
+echo "certs synced for ${DOMAIN}"

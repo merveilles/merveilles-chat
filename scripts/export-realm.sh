@@ -3,19 +3,19 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="${ROOT_DIR}/.env"
 OUT_DIR="${ROOT_DIR}/keycloak-config/import"
+STACK_ENV="${ROOT_DIR}/env/stack.env"
 
-if [[ ! -f "${ENV_FILE}" ]]; then
-  echo "Missing .env at ${ENV_FILE}" >&2
+if [[ ! -f "${STACK_ENV}" ]]; then
+  echo "missing env file: ${STACK_ENV}" >&2
   exit 1
 fi
 
 # shellcheck disable=SC1090
-source "${ENV_FILE}"
+source "${STACK_ENV}"
 
 KC_CONTAINER="${KC_CONTAINER:-chat-idp}"
-KC_REALM="${KC_REALM:-merveilles}"
+KC_REALM="${KC_REALM:-community}"
 CONTAINER_EXPORT_DIR="/tmp/realm-export"
 TMP_JSON="$(mktemp)"
 trap 'rm -f "${TMP_JSON}"' EXIT
@@ -34,4 +34,4 @@ python3 "${ROOT_DIR}/scripts/redact-realm.py" \
   "${TMP_JSON}" \
   "${OUT_DIR}/${KC_REALM}-realm.json"
 
-echo "Exported and redacted realm to ${OUT_DIR}/${KC_REALM}-realm.json"
+echo "realm export written to ${OUT_DIR}/${KC_REALM}-realm.json"
