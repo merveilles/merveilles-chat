@@ -64,6 +64,12 @@ Useful checks:
 bash scripts/compose-up.sh status
 curl -k https://sso.localhost/realms/community/.well-known/openid-configuration
 ```
+If you changed `SSO_SUBDOMAIN`, replace `sso` accordingly.
+
+Subdomains are configurable via env:
+- `SSO_SUBDOMAIN` (default `sso`)
+- `CHAT_SUBDOMAIN` (default `xmpp`)
+Set them in `env/stack.env` and `env/proxy.env`.
 
 Create a test user:
 

@@ -5,7 +5,7 @@
 # Keycloak Identity Provider
 server {
     listen 443 ssl;
-    server_name sso.${DOMAIN};
+    server_name ${SSO_SUBDOMAIN}.${DOMAIN};
 
     ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
@@ -28,7 +28,7 @@ server {
 # Prosody HTTP services (BOSH, file share)
 server {
     listen 443 ssl;
-    server_name xmpp.${DOMAIN};
+    server_name ${CHAT_SUBDOMAIN}.${DOMAIN};
 
     ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
@@ -47,7 +47,7 @@ server {
 # HTTP → HTTPS redirect + ACME challenge
 server {
     listen 80;
-    server_name sso.${DOMAIN} xmpp.${DOMAIN};
+    server_name ${SSO_SUBDOMAIN}.${DOMAIN} ${CHAT_SUBDOMAIN}.${DOMAIN};
 
     # Let's Encrypt ACME challenge
     location /.well-known/acme-challenge/ {

@@ -1,0 +1,15 @@
+# Nginx bootstrap configuration for FIRST TIME Let's Encrypt cert issuance.
+# THIS IS HTTP only! It serves the ACME challenge and redirects everything else to HTTPS.
+
+server {
+    listen 80;
+    server_name ${DOMAIN} ${SSO_SUBDOMAIN}.${DOMAIN} ${CHAT_SUBDOMAIN}.${DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}

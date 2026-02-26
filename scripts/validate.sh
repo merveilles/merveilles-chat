@@ -48,8 +48,12 @@ done
 echo ""
 echo "checking domain values..."
 STACK_DOMAIN=$(read_val "${ENV_DIR}/stack.env" "DOMAIN")
+STACK_SSO_SUBDOMAIN=$(read_val "${ENV_DIR}/stack.env" "SSO_SUBDOMAIN")
+STACK_CHAT_SUBDOMAIN=$(read_val "${ENV_DIR}/stack.env" "CHAT_SUBDOMAIN")
 XMPP_DOMAIN=$(read_val "${ENV_DIR}/xmpp.env" "DOMAIN")
 PROXY_DOMAIN=$(read_val "${ENV_DIR}/proxy.env" "DOMAIN")
+PROXY_SSO_SUBDOMAIN=$(read_val "${ENV_DIR}/proxy.env" "SSO_SUBDOMAIN")
+PROXY_CHAT_SUBDOMAIN=$(read_val "${ENV_DIR}/proxy.env" "CHAT_SUBDOMAIN")
 IDP_HOSTNAME=$(read_val "${ENV_DIR}/idp.env" "KC_HOSTNAME")
 
 if [ -z "$STACK_DOMAIN" ]; then
@@ -69,9 +73,33 @@ else
         ok "proxy.env DOMAIN matches"
     fi
 
-    EXPECTED_KC_HOST="sso.${STACK_DOMAIN}"
+    if [ -z "$STACK_SSO_SUBDOMAIN" ]; then
+        err "SSO_SUBDOMAIN not set in stack.env"
+    else
+        ok "SSO_SUBDOMAIN=${STACK_SSO_SUBDOMAIN}"
+    fi
+
+    if [ -z "$STACK_CHAT_SUBDOMAIN" ]; then
+        err "CHAT_SUBDOMAIN not set in stack.env"
+    else
+        ok "CHAT_SUBDOMAIN=${STACK_CHAT_SUBDOMAIN}"
+    fi
+
+    if [ "$PROXY_SSO_SUBDOMAIN" != "$STACK_SSO_SUBDOMAIN" ]; then
+        err "proxy.env SSO_SUBDOMAIN='${PROXY_SSO_SUBDOMAIN}' does not match stack.env SSO_SUBDOMAIN='${STACK_SSO_SUBDOMAIN}'"
+    else
+        ok "proxy.env SSO_SUBDOMAIN matches"
+    fi
+
+    if [ "$PROXY_CHAT_SUBDOMAIN" != "$STACK_CHAT_SUBDOMAIN" ]; then
+        err "proxy.env CHAT_SUBDOMAIN='${PROXY_CHAT_SUBDOMAIN}' does not match stack.env CHAT_SUBDOMAIN='${STACK_CHAT_SUBDOMAIN}'"
+    else
+        ok "proxy.env CHAT_SUBDOMAIN matches"
+    fi
+
+    EXPECTED_KC_HOST="${STACK_SSO_SUBDOMAIN}.${STACK_DOMAIN}"
     if [ "$IDP_HOSTNAME" != "$EXPECTED_KC_HOST" ]; then
-        err "idp.env KC_HOSTNAME='${IDP_HOSTNAME}' expected 'sso.${STACK_DOMAIN}'"
+        err "idp.env KC_HOSTNAME='${IDP_HOSTNAME}' expected '${EXPECTED_KC_HOST}'"
     else
         ok "idp.env KC_HOSTNAME matches stack domain"
     fi
