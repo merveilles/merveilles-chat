@@ -19,6 +19,14 @@ def parse_args() -> argparse.Namespace:
         "--domain",
         help="Set domain (e.g. 'localhost' or 'example.com'). Skips interactive prompt.",
     )
+    parser.add_argument(
+        "--sso-subdomain",
+        help="Set SSO subdomain label.",
+    )
+    parser.add_argument(
+        "--chat-subdomain",
+        help="Set chat/prosody subdomain label.",
+    )
     return parser.parse_args()
 
 
@@ -43,7 +51,11 @@ def ensure_env_files(project_root: Path) -> Path:
     env_dir = project_root / "env"
     postgres_data = project_root / "postgres_data"
 
-    if postgres_data.exists() and any(postgres_data.iterdir()) and not (env_dir / "db.env").exists():
+    if (
+        postgres_data.exists()
+        and any(postgres_data.iterdir())
+        and not (env_dir / "db.env").exists()
+    ):
         raise BootstrapError(
             "Refusing to create env/db.env while postgres_data is non-empty. "
             "Restore previous env files or reset postgres_data."
@@ -62,7 +74,12 @@ def ensure_env_files(project_root: Path) -> Path:
     return env_dir / "stack.env"
 
 
-def configure_domain(project_root: Path, domain_override: str | None = None) -> None:
+def configure_domain(
+    project_root: Path,
+    domain_override: str | None = None,
+    sso_subdomain_override: str | None = None,
+    chat_subdomain_override: str | None = None,
+) -> None:
     env_dir = project_root / "env"
     stack_env = env_dir / "stack.env"
     xmpp_env = env_dir / "xmpp.env"
@@ -91,12 +108,32 @@ def configure_domain(project_root: Path, domain_override: str | None = None) -> 
         if not target_domain:
             raise BootstrapError("Domain cannot be empty")
 
+    target_sso_subdomain = (
+        sso_subdomain_override
+        or stack.get("SSO_SUBDOMAIN", "").strip()
+        or load_env(proxy_env).get("SSO_SUBDOMAIN", "").strip()
+        or "sso"
+    )
+    target_chat_subdomain = (
+        chat_subdomain_override
+        or stack.get("CHAT_SUBDOMAIN", "").strip()
+        or load_env(proxy_env).get("CHAT_SUBDOMAIN", "").strip()
+        or "chat"
+    )
+
     set_env_value(stack_env, "DOMAIN", target_domain)
+    set_env_value(stack_env, "SSO_SUBDOMAIN", target_sso_subdomain)
+    set_env_value(stack_env, "CHAT_SUBDOMAIN", target_chat_subdomain)
     set_env_value(xmpp_env, "DOMAIN", target_domain)
     set_env_value(xmpp_env, "PROSODY_ADMIN_JID", f"admin@{target_domain}")
     set_env_value(proxy_env, "DOMAIN", target_domain)
-    set_env_value(idp_env, "KC_HOSTNAME", f"sso.{target_domain}")
-    logger.info(f"Configured DOMAIN={target_domain}")
+    set_env_value(proxy_env, "SSO_SUBDOMAIN", target_sso_subdomain)
+    set_env_value(proxy_env, "CHAT_SUBDOMAIN", target_chat_subdomain)
+    set_env_value(idp_env, "KC_HOSTNAME", f"{target_sso_subdomain}.{target_domain}")
+    logger.info(
+        "Configured DOMAIN=%s, SSO_SUBDOMAIN=%s, CHAT_SUBDOMAIN=%s"
+        % (target_domain, target_sso_subdomain, target_chat_subdomain)
+    )
 
 
 def run_secure_script(project_root: Path) -> None:
@@ -144,7 +181,9 @@ def sync_prosody_modules(project_root: Path) -> None:
     modules_dir = project_root / "prosody" / "modules"
 
     if not (modules_dir / ".hg").exists():
-        run_cmd(["hg", "clone", "https://hg.prosody.im/prosody-modules/", str(modules_dir)])
+        run_cmd(
+            ["hg", "clone", "https://hg.prosody.im/prosody-modules/", str(modules_dir)]
+        )
         return
 
     run_cmd(["hg", "-R", str(modules_dir), "pull", "-u"])
@@ -164,7 +203,12 @@ def main() -> int:
 
         ensure_dirs(project_root)
         stack_env = ensure_env_files(project_root)
-        configure_domain(project_root, domain_override=args.domain)
+        configure_domain(
+            project_root,
+            domain_override=args.domain,
+            sso_subdomain_override=args.sso_subdomain,
+            chat_subdomain_override=args.chat_subdomain,
+        )
         set_permissions(project_root)
         run_secure_script(project_root)
 

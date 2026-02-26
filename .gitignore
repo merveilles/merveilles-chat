@@ -21,9 +21,14 @@ keycloak-config/import/*-realm.json
 prosody/modules/*
 !prosody/modules/.gitkeep
 
-# Certificates prod certs should be handled by Let's Encrypt/Certbot, local stuff = throwaway
+# prod certs handled by Let's Encrypt/Certbot, local stuff = throwaaway
 prosody/certs/*.key
 prosody/certs/*.crt
+compose/proxy/dev-certs/
+compose/proxy/active.conf.template
+
+# Orchestration state
+.compose-env
 
 # Python
 __pycache__/

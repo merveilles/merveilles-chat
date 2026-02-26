@@ -45,6 +45,11 @@ ensure_env() {
     done
 }
 
+read_proxy_val() {
+    local key="$1"
+    grep -E "^${key}=" "${ENV_DIR}/proxy.env" 2>/dev/null | head -1 | cut -d= -f2-
+}
+
 create_networks() {
     for net in db-mesh proxy-mesh; do
         if ! docker network inspect "$net" >/dev/null 2>&1; then
@@ -68,6 +73,15 @@ select_nginx_config() {
     case "$env" in
         dev)
             echo "Environment: dev (self-signed TLS)"
+            local domain
+            local sso_subdomain
+            local chat_subdomain
+            domain="$(read_proxy_val "DOMAIN")"
+            sso_subdomain="$(read_proxy_val "SSO_SUBDOMAIN")"
+            chat_subdomain="$(read_proxy_val "CHAT_SUBDOMAIN")"
+            domain="${domain:-localhost}"
+            sso_subdomain="${sso_subdomain:-sso}"
+            chat_subdomain="${chat_subdomain:-xmpp}"
             # Generate self-signed cert if missing
             local cert_dir="${proxy_dir}/dev-certs"
             mkdir -p "$cert_dir"
@@ -77,8 +91,8 @@ select_nginx_config() {
                     -newkey rsa:2048 \
                     -keyout "${cert_dir}/selfsigned.key" \
                     -out "${cert_dir}/selfsigned.crt" \
-                    -subj "/CN=localhost" \
-                    -addext "subjectAltName=DNS:localhost,DNS:sso.localhost,DNS:xmpp.localhost" \
+                    -subj "/CN=${domain}" \
+                    -addext "subjectAltName=DNS:${domain},DNS:${sso_subdomain}.${domain},DNS:${chat_subdomain}.${domain}" \
                     2>/dev/null
             fi
             # Swap nginx template to dev version
@@ -88,8 +102,12 @@ select_nginx_config() {
             echo "Environment: prod (Let's Encrypt)"
             ln -sf nginx.conf.template "${proxy_dir}/active.conf.template"
             ;;
+        prod-bootstrap)
+            echo "Environment: prod-bootstrap (HTTP-only ACME challenge)"
+            ln -sf nginx-bootstrap.conf.template "${proxy_dir}/active.conf.template"
+            ;;
         *)
-            echo "Unknown environment: ${env}. Use 'dev' or 'prod'."
+            echo "Unknown environment: ${env}. Use 'dev', 'prod', or 'prod-bootstrap'."
             exit 1
             ;;
     esac
@@ -112,11 +130,24 @@ cmd_up() {
     echo ""
     echo "All services started (${env}). Check status with: $0 status"
 
-    if [ "$env" = "prod" ]; then
+    if [ "$env" = "prod" ] || [ "$env" = "prod-bootstrap" ]; then
         echo ""
         echo "Next: Run ./scripts/init-certs.sh to obtain Let's Encrypt certificates."
         echo "Then:  ./scripts/sync-certs.sh <domain> to sync certs to Prosody."
     fi
+}
+
+cmd_switch_nginx() {
+    local env="${1:-}"
+    if [ -z "$env" ]; then
+        echo "Usage: $0 switch-nginx <dev|prod|prod-bootstrap>"
+        exit 1
+    fi
+
+    ensure_env
+    select_nginx_config "$env"
+    echo "Applying nginx config: ${env}"
+    compose proxy up -d --force-recreate
 }
 
 cmd_down() {
@@ -167,8 +198,9 @@ case "${1:-up}" in
     down)    cmd_down ;;
     restart) cmd_restart "${2:-}" ;;
     status)  cmd_status ;;
+    switch-nginx) cmd_switch_nginx "${2:-}" ;;
     *)
-        echo "Usage: $0 [up [dev|prod]|down|restart <service>|status]"
+        echo "Usage: $0 [up [dev|prod]|down|restart <service>|status|switch-nginx <dev|prod|prod-bootstrap>]"
         exit 1
         ;;
 esac

@@ -4,7 +4,7 @@
 # Keycloak Identity Provider
 server {
     listen 443 ssl;
-    server_name sso.${DOMAIN};
+    server_name ${SSO_SUBDOMAIN}.${DOMAIN};
 
     ssl_certificate     /etc/nginx/certs/selfsigned.crt;
     ssl_certificate_key /etc/nginx/certs/selfsigned.key;
@@ -25,7 +25,7 @@ server {
 # Prosody HTTP services (BOSH, file share)
 server {
     listen 443 ssl;
-    server_name xmpp.${DOMAIN};
+    server_name ${CHAT_SUBDOMAIN}.${DOMAIN};
 
     ssl_certificate     /etc/nginx/certs/selfsigned.crt;
     ssl_certificate_key /etc/nginx/certs/selfsigned.key;
@@ -42,7 +42,7 @@ server {
 # HTTP → HTTPS redirect
 server {
     listen 80;
-    server_name sso.${DOMAIN} xmpp.${DOMAIN};
+    server_name ${SSO_SUBDOMAIN}.${DOMAIN} ${CHAT_SUBDOMAIN}.${DOMAIN};
 
     location / {
         return 301 https://$host$request_uri;

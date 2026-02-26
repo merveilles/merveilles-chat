@@ -18,6 +18,10 @@ cp env/xmpp.env.example env/xmpp.env
 cp env/proxy.env.example env/proxy.env
 ```
 
+Subdomain routing is configured in:
+- `stack.env`: `SSO_SUBDOMAIN`, `CHAT_SUBDOMAIN`
+- `proxy.env`: `SSO_SUBDOMAIN`, `CHAT_SUBDOMAIN`
+
 ## SOPS
 
 Do not commit raw `env/*.env` files.
